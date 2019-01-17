@@ -1,0 +1,4 @@
+(library 
+  (name pricing)
+  (libraries core_kernel)
+)

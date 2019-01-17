@@ -1,0 +1,11 @@
+(executable 
+  (name test)
+  (modules test)
+  (libraries ounit pricing)
+)
+
+(executable 
+  (name unit_tests)
+  (modules unit_tests)
+  (libraries ounit pricing)
+)

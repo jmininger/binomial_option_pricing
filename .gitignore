@@ -1,0 +1,4 @@
+*.swp
+TestList.txt
+_build/*
+*.merlin

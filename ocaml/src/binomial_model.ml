@@ -201,14 +201,14 @@ let rec price_tree mature_prices ~p ~r ~dt =
  *      - Number of time periods in the binomial model; resolution parameter
  *    rate :float
  *      - Interest rate
- *    ttm :float
+ *    time :float
  *      - Time to maturity. Measured in years
  *    variance :float
  *      - Variance of the underlying asset
  *
  **)
-let price_option opt_type spot strike res rate ttm variance = 
-  let dt = ttm /. (float res) in
+let price_option opt_type spot strike res rate time variance = 
+  let dt = time /. (float res) in
   let u, d = calculate_factors variance dt in
   (* Return a random variable from martingdale_probability instead *)
   let p, _ = martingdale_probability u d rate dt in

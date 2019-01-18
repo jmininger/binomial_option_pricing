@@ -1,3 +1,5 @@
+#include "binomial_model.h"
+
 #include <iostream>
 #include <cmath>
 #include <algorithm>

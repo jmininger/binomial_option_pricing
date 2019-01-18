@@ -1,0 +1,4 @@
+(executable 
+  (name cml_app)
+  (libraries pricing core_kernel)
+)

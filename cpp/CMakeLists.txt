@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.2)
 
-project(TicTacToe)
+project(OptionPricing)
 
 set (CMAKE_CXX_STANDARD 11)
 
@@ -46,6 +46,6 @@ endif()
 
 enable_testing()
   # Now simply link against gtest or gtest_main as needed. Eg
-add_executable(example_test tests/example_test.cpp)
-target_link_libraries(example_test example gtest_main)
-add_test(NAME example_test COMMAND example)
+add_executable(binomial_model_test tests/binomial_model_test.cpp)
+target_link_libraries(binomial_model_test pricing gtest_main)
+add_test(NAME binomial_model_test COMMAND binomial)

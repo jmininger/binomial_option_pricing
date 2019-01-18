@@ -3,3 +3,4 @@ tags
 *.o
 build/*
 *.swp
+*a.out

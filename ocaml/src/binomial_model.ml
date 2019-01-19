@@ -1,5 +1,10 @@
 open Core_kernel
 
+
+type option_type =  
+| Call
+| Put
+
 (** 
  * calculate_factors 
  *  - Returns the two factors by which the underlying asset is allowed to
@@ -13,7 +18,7 @@ open Core_kernel
  *      years
  **)
 let calculate_factors variance dt = 
-  let u = exp (variance *. (sqrt@@dt)) in
+  let u = exp (sqrt (variance *. dt)) in
   (u, 1./.u)
 
 
@@ -34,16 +39,13 @@ let calculate_factors variance dt =
  *      years
  **)
 let martingdale_probability u d r dt = 
-  let u_prob = ((exp@@(r*.dt)) -. d) /. (u -. d) in
+  let u_prob = ((exp (r*.dt)) -. d) /. (u -. d) in
   if (u_prob >= 0. && u_prob <= 1.) then
     u_prob, (1. -. u_prob)
   else
+    let () = Printf.printf "%f %f\n" u_prob (1. -. u_prob) in
     raise (Failure "probabilities do not sum to 1. ")
 
-
-type option_type =  
-| Call
-| Put
 
 
 (** 
@@ -207,7 +209,7 @@ let rec price_tree mature_prices ~p ~r ~dt =
  *      - Variance of the underlying asset
  *
  **)
-let price_option opt_type spot strike res rate time variance = 
+let price_option opt_type strike ~spot ~res ~rate ~time ~variance = 
   let dt = time /. (float res) in
   let u, d = calculate_factors variance dt in
   (* Return a random variable from martingdale_probability instead *)

@@ -1,64 +1,56 @@
 open Core_kernel
 
+let print_float_list lst = 
+  Printf.printf "%s\n" (List.to_string lst ~f:(Float.to_string))
 
 type option_type =  
 | Call
 | Put
 
+type recombinant_asset = 
+  {spot_price:float; up:float; prob_up:float; down:float; prob_down:float}
+
+let create_recombinant spot_price ~up ~prob_up = 
+  if up <= 1. then
+    raise (Failure "up factor can not be < 1")
+  else if prob_up > 1. || prob_up < 0. then
+    raise (Failure "prob_up must be a valid probability")
+  else 
+    { spot_price = spot_price;
+      up = up; 
+      prob_up = prob_up;
+      down = (1. /. up); 
+      prob_down = (1. -. prob_up)
+    }
+
 (** 
  * calculate_factors 
  *  - Returns the two factors by which the underlying asset is allowed to
- *  change by during a single time period
- * 
- * Parameters: 
- *    variance :float
- *      - The variance of the underlying asset
- *    dt :float
- *      - delta time. The length of a single period in the model. Measured in
- *      years
+ *  change by during a single time period, delta_t
  **)
-let calculate_factors variance dt = 
-  let u = exp (sqrt (variance *. dt)) in
+let calculate_factors variance delta_t = 
+  let u = exp (sqrt (variance *. delta_t)) in
   (u, 1./.u)
 
 
 (** 
  * martingdale_probability 
- *  - Determines the probabilities (p*, q* ) that make the random variable, S,
- *  a martingdale process
- * 
- * Parameters: 
- *    u :float
- *      - The up factor
- *    d :float
- *      - The down factor
- *    r :float
- *      - The continuous interest rate
- *    dt :float
- *      - delta time. The length of a single period in the model. Measured in
- *      years
+ *  - Determines the probabilities (p*, q* ) that make the random variable, S
+ *  (with possible states Su and Sd), a martingdale process. Raises an exn if 
+ *  probabilites don't sum to 1.
  **)
-let martingdale_probability u d r dt = 
-  let u_prob = ((exp (r*.dt)) -. d) /. (u -. d) in
-  if (u_prob >= 0. && u_prob <= 1.) then
-    u_prob, (1. -. u_prob)
+let martingdale_probability rate ~up ~down ~delta_t = 
+  let prob_u = (exp (rate *. delta_t) -. down) /. (up -. down) in
+  if (prob_u >= 0. && prob_u <= 1.) then
+    prob_u, (1. -. prob_u)
   else
-    let () = Printf.printf "%f %f\n" u_prob (1. -. u_prob) in
-    raise (Failure "probabilities do not sum to 1. ")
-
+    let error_str = Printf.sprintf "%f %f\n" prob_u (1. -. prob_u) in
+    raise (Failure ("probabilities do not sum to 1. " ^ error_str))
 
 
 (** 
  * option_payoff 
  *  - Calculates the profit of an option at maturity
- * 
- * Parameters: 
- *    spot :float
- *      - The spot price of the underlying asset at maturity, S(T)
- *    strike :float
- *      - The strike price of the option
- *    opt_type :opt_type
- *      - The type of option (call or put)
  **)
 let option_payoff spot strike ~opt_type = 
   match opt_type with
@@ -67,125 +59,73 @@ let option_payoff spot strike ~opt_type =
   | Put ->
     max 0. (strike -. spot)
 
-
-(** 
- * prices_at_maturity 
- *  - The range of final values of the underlying asset after a specified
- *  number of time periods
- * 
- * Parameters: 
- *    u :float
- *      - The up factor
- *    d :float
- *      - The down factor
- *    spot :float
- *      - The spot price of the underlying asset at maturity, S(T)
- *    periods: int
- *      - The number of time periods in the model. AKA the resolution parameter
- **)
-let prices_at_maturity u d ~spot ~periods = 
+  
+(**
+ * asset_states
+ * - Creates a list of the possible prices of an asset after a specified
+ * number of time periods (ordered low to high) 
+ *)
+let asset_states {spot_price; up; down; _}  ~periods = 
   let indices = Sequence.range 0 periods ~stop:`inclusive 
     |> Sequence.map ~f:(float) in
+  let periods = float periods in
   let prices = Sequence.map indices ~f:(fun idx -> 
-    (* Highest prices come first in the list *)
-    spot*.(d**(idx)) *. u**((float periods) -.idx)) in
+    spot_price *. up**idx *. down**(periods -.idx)) in
   Sequence.to_list prices
-  
-(** 
- * binomial_expectation
- *  - The expectation of a random variable with a Bernoulli distribution
- * 
- * Parameters: 
- *    high :float
- *      - The up factor
- *    low :float
- *      - The down factor
- *    p_high :float
- *      - The probability, p*, of the asset increasing by the "up" factor
- *    p_low: float
- *      - The probability, q*, of the asset decreasing by the "down" factor
- **)
+ 
+
 let binomial_expectation high low ~p_high ~p_low = 
   high *. p_high +. low *. p_low
 
+
 (** 
  * discount_price
- *  - Discounts an price by the risk free rate
- * 
- * Parameters: 
- *    price :float
- *      - Asset price
- *    rate :float
- *      - Interest rate
- *    dt: float
- *      - Length of a time period; measured in years
+ *  - Continuously discount a price at the risk free rate
  **)
-let discount_price price rate dt = 
-  (* Continuously discount a price at the risk free rate *)
-  price *. (exp@@(-1. *. rate *. dt))
+let discount_price price rate delta_t = 
+  price *. (exp@@(-1. *. rate *. delta_t))
 
 
 (** 
- * staggerd_zip
- *  - Zips a list with another that would be identical if not for the fact that
- *  it is shifted by an index. The resulting list has a length of n-1
- *  Ex: staggered_zip [1; 2; ... 9; 10] -> [(1, 2); (2, 3); ...(8, 9); (9, 10)]
- * 
- * Parameters: 
- *    lst :'a list
- *      - A list
+ * staggerd_map
+ *  - Takes a list and applies a binary function to each element and the
+ *  element in front of it. The length of the resulting list is always one less
+ *  than the input list.
  **)
-let staggered_zip lst = 
-  let len = List.length lst in
-  match lst with 
-  | [] | [_] ->
-      []
-  | _::tl ->
-      List.zip_exn (List.slice lst 0 (len - 1)) tl
-
+let staggered_map lst ~f = 
+  let rec aux accum = function
+    | [] | [_] -> List.rev accum
+    | a::b::tl ->
+        aux ((f a b)::accum) (b::tl)
+  in
+  aux [] lst
 
 
 (** 
  * price_level
- *  - Prices a single level of a binomial pricing tree
- * 
- * Parameters: 
- *    future_prices :float list
- *      - A list of the options prices at time: t+1
- *    p :float
- *      - Martingdale probability, p*
- *    r :float
- *      - Interest rate
- *    dt :float
- *      - delta time
+ *  - Prices a single level of a binomial pricing tree at time t using the
+ *  values at time t+1
  **)
-let price_level future_prices ~p ~r ~dt = 
-  let q = 1. -. p in
-  List.map (staggered_zip future_prices) ~f:(fun pair -> 
-    let a, b = pair in binomial_expectation a b ~p_high:p ~p_low:q)
-  |> List.map ~f: (fun price -> discount_price price r dt)
+let price_level future_prices ~prob_up ~rate ~delta_t = 
+  let prob_down = 1. -. prob_up in
+  (* combine two functions so that two seperate mappings are not needed *)
+  let discounted_expec low high = 
+    let expect = binomial_expectation high low ~p_high:prob_up ~p_low:prob_down in
+    discount_price expect rate delta_t
+  in
+  staggered_map future_prices ~f: discounted_expec
   
 (** 
  * price_tree
- *  - Uses price_level to recursively price the entire tree
- * 
- * Parameters: 
- *    mature_prices :float list
- *      - A list of the options profits at time maturity
- *    p :float
- *      - Martingdale probability, p*
- *    r :float
- *      - Interest rate
- *    dt :float
- *      - delta time
+ *  - Uses price_level to recursively price the entire recombinant tree
  **)
-let rec price_tree mature_prices ~p ~r ~dt = 
-  if (List.length mature_prices) <= 1 then
-    List.hd_exn mature_prices
-  else 
-    let level_prices = price_level mature_prices ~p ~r ~dt
-    in
-    price_tree level_prices ~p ~r ~dt
+let rec price_tree maturity_values ~prob_up ~rate ~delta_t = 
+  match maturity_values with 
+  | [] | [_] ->
+    List.hd_exn maturity_values
+  | maturity_values -> 
+    let level_prices = price_level maturity_values ~prob_up ~rate ~delta_t in
+    price_tree level_prices ~prob_up ~rate ~delta_t
 
 
 (** 
@@ -210,11 +150,11 @@ let rec price_tree mature_prices ~p ~r ~dt =
  *
  **)
 let price_option opt_type strike ~spot ~res ~rate ~time ~variance = 
-  let dt = time /. (float res) in
-  let u, d = calculate_factors variance dt in
-  (* Return a random variable from martingdale_probability instead *)
-  let p, _ = martingdale_probability u d rate dt in
-  prices_at_maturity u d ~spot ~periods: res
+  let delta_t = time /. (float res) in
+  let up, down = calculate_factors variance delta_t in
+  let prob_up, _ = martingdale_probability rate ~up ~down ~delta_t in
+  let asset = create_recombinant spot ~up ~prob_up in
+  asset_states asset ~periods:res
     |> List.map ~f: (fun spot -> option_payoff spot strike ~opt_type)
-    |> price_tree ~p ~r:rate ~dt
+    |> price_tree ~prob_up ~rate ~delta_t
 

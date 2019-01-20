@@ -27,7 +27,7 @@ let variance = 0.12**2.
 
 let () = 
   let bsm_price = 
-    Black_scholes_model.black_scholes spot strike ~rate ~time ~variance
+    Black_scholes_model.black_scholes_call spot strike ~rate ~time ~variance
   in
   let resolutions = [1; 10; 100; 1000; 10000] in
   List.iter resolutions

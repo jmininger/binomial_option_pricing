@@ -1,4 +1,11 @@
 (executable 
   (name cml_app)
+  (modules cml_app)
+  (libraries pricing core_kernel)
+)
+
+(executable 
+  (name converge_example)
+  (modules converge_example)
   (libraries pricing core_kernel)
 )

@@ -1,7 +1,7 @@
 (executable 
   (name cml_app)
   (modules cml_app)
-  (libraries pricing core_kernel)
+  (libraries pricing core_kernel str)
 )
 
 (executable 

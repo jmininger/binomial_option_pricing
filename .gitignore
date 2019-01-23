@@ -2,4 +2,5 @@
 *TestList.txt
 *_build/*
 ocaml/_build/*
+cpp/_build/*
 *.merlin

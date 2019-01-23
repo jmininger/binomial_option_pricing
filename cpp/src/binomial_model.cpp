@@ -6,77 +6,94 @@
 #include <stdexcept>
 #include <vector>
 
-using namespace std;
-class Bernoulli {
-  public:
-    explicit Bernoulli(double p): p_(p), q_(1.-p) {};
-    double getP() { return p_; };
-    double getQ() { return q_; };
-  private:
-    double p_, q_;
-};
 
-class DiscreteRandomVar {
-  /* Given takes any distr with an iterator. This allows it to easily calculate
-   * the expectation */
-};
+/* class Bernoulli { */
+/*   public: */
+/*     explicit Bernoulli(double p): p_(p), q_(1.-p) {}; */
+/*     double getP() { return p_; }; */
+/*     double getQ() { return q_; }; */
+/*   private: */
+/*     double p_, q_; */
+/* }; */
 
-Bernoulli martingdale(double upFactor, double downFactor, double rate) {
-  auto probUp = ((1+rate)-downFactor)/(upFactor-downFactor);
-  return Bernoulli(probUp);
+double martingdale(double upFactor, double downFactor, double rate, double deltaT) {
+  return (std::exp(rate * deltaT)-downFactor)/(upFactor-downFactor);
+}
+ 
+bool isEven(int n) { return n % 2 == 0; }
+bool isOdd(int n) { return n % 2 != 0; }
+
+double expectation(double v1, double prob1, double v2, double prob2) {
+  return (v1 * prob1) + (v2 * prob2);
 }
 
-double expectation(const double prob1, const double val1, const double prob2, const double val2) {
-  // assert that the probabilities are equal
-  return (prob1 * val1) + (prob2 * val2);
+
+std::vector<double> RecombinantAsset::statesAt(int timePeriods) {
+  int numStates = timePeriods + 1;
+  std::vector<double> states(numStates);
+  for(auto i = 0; i<numStates; ++i) {
+    // oFF by one somewhere here
+    states[i] = std::pow(up, i) * std::pow(down, numStates - 1 - i) * spotPrice ;
+  }
+  return states;
 }
 
-// turn this into constexpr
-double discountedPrice(double iRate, double dt) {
-  return (std::exp(-1. * iRate * dt));
+double discountedFactor(double rate, double dt) {
+  return (std::exp(-1. * rate * dt));
 }
 
-double priceTree(const vector<double> &nextLevel, Bernoulli martingdale, double discountFactor) {
+
+
+double priceTree(const std::vector<double> &nextLevel, RecombinantAsset asset, double discountFactor) {
   if(nextLevel.size() <= 1) {
     //deal with size less than 1 (someone can maliciously pass it in)
     return nextLevel.front();
   }
   else {
-    auto p = martingdale.getP();
-    auto q = martingdale.getQ();
+    auto p = asset.getP();
+    auto q = asset.getQ();
     //use vec.reserve instead??
-
-    vector<double> currentLevel(nextLevel.size()-1);
+    std::vector<double> currentLevel(nextLevel.size()-1);
     for(auto i = 0; i<currentLevel.size(); ++i) {
-      double expect = expectation(p, nextLevel[i], q, nextLevel[i+1]);
+      double expect = expectation(q, nextLevel[i], p, nextLevel[i+1]);
       currentLevel[i] = expect * discountFactor;
     }
-    return priceTree(std::move(currentLevel), martingdale, discountFactor);
+    return priceTree(std::move(currentLevel), asset, discountFactor);
   }
 }
 
-enum class OptionType { Call, Put };
 
-std::vector<double> pricesAtMaturity(double upFactor, double downFactor, 
-                                    Bernoulli martingdale, double iRate, 
-                                    double spotPrice, double strikePrice, 
+std::vector<double> pricesAtMaturity(RecombinantAsset asset, double strikePrice, 
                                     int resolution, OptionType optType) {
-  std::vector<double> optionValues(resolution);
-  const int nodes = optionValues.size(); 
-  for(auto i = 0; i<optionValues.size(); ++i) {
-    double assetPrice = spotPrice * pow(upFactor, resolution-i) * pow(downFactor, i);
-    switch(optType) {
-      case OptionType::Call:
-        optionValues[i] = max(assetPrice-strikePrice, 0.);
-      case OptionType::Put:
-        optionValues[i] = max(strikePrice-assetPrice, 0.);
-      default:
-        throw domain_error("Invalid optType");
-    }
+  std::vector<double> optionValues = asset.statesAt(resolution);
+  for(auto &val : optionValues) {
+    if(optType == OptionType::Call)
+      val = std::max(val - strikePrice, 0.);
+    else 
+      val = std::max(strikePrice - val, 0.);
   }
   return optionValues;  
 }
 
-int main () {
-  cout << "Assert this is double...doubles turn ints into doubles not vice versa: " << 1. * 5 << endl;
+double recombinantFactor(double variance, double deltaT) {
+  return std::exp(std::sqrt(variance * deltaT));
+}
+
+RecombinantAsset createAsset(double spot, double rate, double deltaT, double variance, int resolution) {
+ double upFactor = recombinantFactor(variance, deltaT);
+ return RecombinantAsset(spot, upFactor, rate, deltaT);
+}
+
+double priceOption(OptionType optType, double strike, double spot, 
+    double variance, double rate, double time, int resolution) {
+  double deltaT = time / ((double) resolution);
+  auto asset = createAsset(spot, rate, deltaT, variance, resolution);
+  std::vector<double> finalStates = pricesAtMaturity(asset, strike, resolution, optType);
+  return priceTree(finalStates, asset, discountedFactor(rate, deltaT));
+}
+
+void printVector(std::vector<double> v) {
+  for(auto i : v)
+    std::cout << i <<", ";
+  std::cout<<std::endl;
 }

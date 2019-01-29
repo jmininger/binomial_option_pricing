@@ -9,3 +9,20 @@
   (modules converge_example)
   (libraries pricing core_kernel)
 )
+(executable 
+  (name variance_example)
+  (modules variance_example)
+  (libraries pricing core_kernel )
+)
+
+(executable 
+  (name spot_strike_example)
+  (modules spot_strike_example)
+  (libraries pricing core_kernel )
+)
+
+(executable 
+  (name time_example)
+  (modules time_example)
+  (libraries pricing core_kernel )
+)

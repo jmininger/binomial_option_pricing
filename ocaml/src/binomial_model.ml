@@ -1,7 +1,7 @@
 open Core_kernel
 
-let print_float_list lst = 
-  Printf.printf "%s\n" (List.to_string lst ~f:(Float.to_string))
+(* let print_float_list lst = *) 
+(*   Printf.printf "%s\n" (List.to_string lst ~f:(Float.to_string)) *)
 
 type option_type =  
 | Call

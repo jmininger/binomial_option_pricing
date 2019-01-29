@@ -23,7 +23,7 @@ let black_scholes_call spot strike ~variance ~rate ~time =
   let d1 = d1 spot strike rate variance time in
   let d2 = d2 d1 variance time in
   spot *. (normal_cdf d1) -. strike*. (exp (-1.*.rate*.time))
-  *.(normal_cdf d2)
+    *.(normal_cdf d2)
 
 let black_scholes_put spot strike ~variance ~rate ~time = 
   let d1 = d1 spot strike rate variance time in

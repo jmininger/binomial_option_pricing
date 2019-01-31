@@ -51,3 +51,4 @@ target_link_libraries(binomial_model_test pricing gtest_main)
 add_test(NAME binomial_model_test COMMAND binomial)
 
 add_executable(playground src/playground.cpp)
+target_link_libraries(playground pricing)

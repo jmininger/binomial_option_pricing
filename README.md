@@ -26,7 +26,7 @@ choice for pricing American and Bermudan options. While computationally slower t
 black-scholes model, the binomial model is more accurate. This is due to the
 black-scholes' reliance on the cumulative distribution function of a normal
 distribution, which can only be numerically approximated. An example of this
-can be seen in the [executable](ocaml/bin/convergence_example.ml) that prints a
+can be seen in the [executable](ocaml/bin/converge_example.ml) that prints a
 side-by-side comparison of the black-scholes price and the binomial price as
 the resolution on the binomial model is increased (the resolution represents
 the number of discrete time periods). The difference between the two prices

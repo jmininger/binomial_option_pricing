@@ -13,7 +13,7 @@ pricing model and print results.
     cd ocaml
     dune exec ./bin/cml_app.exe
 
-### [Convergence example](bin/convergence_example.ml) ###
+### [Convergence example](bin/converge_example.ml) ###
 Demonstrates how the binomial model and black scholes model converge on the
 same price as the resolution parameter for the binomial model is increased.
 

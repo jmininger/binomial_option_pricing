@@ -26,3 +26,9 @@
   (modules time_example)
   (libraries pricing core_kernel )
 )
+
+(executable 
+  (name benchmarking)
+  (modules benchmarking)
+  (libraries pricing)
+)

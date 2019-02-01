@@ -7,5 +7,5 @@
 (executable 
   (name unit_tests)
   (modules unit_tests)
-  (libraries ounit pricing)
+  (libraries ounit core_kernel pricing)
 )

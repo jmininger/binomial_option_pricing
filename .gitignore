@@ -4,3 +4,4 @@
 ocaml/_build/*
 cpp/_build/*
 *.merlin
+ocaml_cpp_benchmark_worksheet.xlsx
